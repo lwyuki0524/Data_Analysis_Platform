@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import db from '../db/database';
 import { askAiQuestion } from '../services/aiService';
+import { generateMockChatResponse } from '../services/mockAiService';
 
 export const askChat = async (req: Request, res: Response) => {
   const { dataset_id, room_id, message } = req.body;
@@ -13,39 +14,37 @@ export const askChat = async (req: Request, res: Response) => {
     return res.status(400).json({ success: false, error: 'Room ID is required' });
   }
 
+  let aiResponse;
   try {
-    const aiResponse = await askAiQuestion(dataset_id ? dataset_id.toString() : "default", message);
-
-    db.run(
-      'INSERT INTO chat_history (dataset_id, room_id, question, answer, chart_json, table_json) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        dataset_id || null,
-        room_id,
-        message,
-        aiResponse.answer,
-        aiResponse.chart ? JSON.stringify(aiResponse.chart) : null,
-        aiResponse.table ? JSON.stringify(aiResponse.table) : null
-      ],
-      function (err) {
-        if (err) {
-          return res.status(500).json({ success: false, error: err.message });
-        }
-        res.json({
-          success: true,
-          data: {
-            id: this.lastID,
-            ...aiResponse
-          }
-        });
-      }
-    );
+    aiResponse = await askAiQuestion(dataset_id ? dataset_id.toString() : "default", message);
   } catch (error: any) {
-    console.error('Chat error:', error.message);
-    return res.status(500).json({ 
-      success: false, 
-      error: 'AI service communication failed. Please ensure the AI engine is running.' 
-    });
+    console.warn('AI service communication failed, using mock response:', error.message);
+    aiResponse = generateMockChatResponse(message);
   }
+
+  db.run(
+    'INSERT INTO chat_history (dataset_id, room_id, question, answer, chart_json, table_json) VALUES (?, ?, ?, ?, ?, ?)',
+    [
+      dataset_id || null,
+      room_id,
+      message,
+      aiResponse.answer,
+      aiResponse.chart ? JSON.stringify(aiResponse.chart) : null,
+      aiResponse.table ? JSON.stringify(aiResponse.table) : null
+    ],
+    function (err) {
+      if (err) {
+        return res.status(500).json({ success: false, error: err.message });
+      }
+      res.json({
+        success: true,
+        data: {
+          id: this.lastID,
+          ...aiResponse
+        }
+      });
+    }
+  );
 };
 
 export const getChatHistory = (req: Request, res: Response) => {

@@ -2,7 +2,7 @@ import React from 'react';
 import { VegaEmbed } from 'react-vega';
 
 interface ChartProps {
-  chartSpec: object | null; // This will receive the Altair JSON spec
+  chartSpec: string | object | null; // This will receive the Altair JSON spec
   title?: string;
 }
 
@@ -32,8 +32,16 @@ const Chart = ({ chartSpec, title }: ChartProps) => {
     );
   }
   
+  let parsedSpec: any;
+  try {
+    parsedSpec = typeof chartSpec === 'string' ? JSON.parse(chartSpec) : chartSpec;
+  } catch (e) {
+    console.error('Failed to parse chart spec:', e);
+    return <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-[400px] flex items-center justify-center text-red-500">圖表解析錯誤</div>;
+  }
+  
   const processedSpec = {
-    ...normalizeVegaLite(JSON.parse(chartSpec)),
+    ...normalizeVegaLite(parsedSpec),
     autosize: { type: 'fit' }
   };
   

@@ -34,9 +34,12 @@ export const chatService = {
 };
 
 export const dashboardService = {
-  generate: (datasetId?: string) => api.post('/dashboard/generate', { dataset_id: datasetId }),
+  create: (name: string, datasetId?: string) => api.post('/dashboard', { name, dataset_id: datasetId }),
+  getAll: () => api.get('/dashboard'),
   getLatest: () => api.get('/dashboard/latest'),
   getById: (id: string) => api.get(`/dashboard/${id}`),
+  update: (id: string, name: string) => api.put(`/dashboard/${id}`, { name }),
+  delete: (id: string) => api.delete(`/dashboard/${id}`),
 };
 
 export default api;

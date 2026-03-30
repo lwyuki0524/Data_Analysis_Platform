@@ -52,12 +52,25 @@ export const initDb = () => {
       db.run(`
         CREATE TABLE IF NOT EXISTS dashboards (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
           dataset_id INTEGER,
           config_json TEXT NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (dataset_id) REFERENCES datasets(id)
         )
-      `, (err) => {
+      `);
+
+      // Simple migrations to add missing columns if they don't exist
+      db.run("ALTER TABLE chat_history ADD COLUMN room_id INTEGER", (err) => {
+        // Ignore error if column already exists
+      });
+
+      db.run("ALTER TABLE dashboards ADD COLUMN name TEXT", (err) => {
+        // Ignore error if column already exists
+      });
+
+      // Ensure name is not null for existing dashboards
+      db.run("UPDATE dashboards SET name = '未命名儀表板' WHERE name IS NULL", (err) => {
         if (err) reject(err);
         else resolve();
       });
