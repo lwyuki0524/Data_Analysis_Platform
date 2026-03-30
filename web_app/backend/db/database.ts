@@ -21,17 +21,30 @@ export const initDb = () => {
         )
       `);
 
+      // Chat rooms table
+      db.run(`
+        CREATE TABLE IF NOT EXISTS chat_rooms (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          dataset_id INTEGER,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (dataset_id) REFERENCES datasets(id)
+        )
+      `);
+
       // Chat history table
       db.run(`
         CREATE TABLE IF NOT EXISTS chat_history (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           dataset_id INTEGER,
+          room_id INTEGER,
           question TEXT NOT NULL,
           answer TEXT NOT NULL,
           chart_json TEXT,
           table_json TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (dataset_id) REFERENCES datasets(id)
+          FOREIGN KEY (dataset_id) REFERENCES datasets(id),
+          FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE
         )
       `);
 

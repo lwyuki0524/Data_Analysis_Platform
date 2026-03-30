@@ -14,14 +14,23 @@ export const datasetService = {
   },
   getAll: () => api.get('/dataset'),
   getById: (id: string) => api.get(`/dataset/${id}`),
+  getPreview: (id: string) => api.get(`/dataset/${id}/preview`),
   delete: (id: string) => api.delete(`/dataset/${id}`),
 };
 
 export const chatService = {
-  ask: (datasetId: string | null, message: string) => 
-    api.post('/chat', { dataset_id: datasetId, message }),
-  getHistory: (datasetId?: string) => 
-    api.get('/chat/history', { params: { dataset_id: datasetId } }),
+  ask: (datasetId: string | null, roomId: number, message: string) => 
+    api.post('/chat', { dataset_id: datasetId, room_id: roomId, message }),
+  getHistory: (roomId: number) => 
+    api.get('/chat/history', { params: { room_id: roomId } }),
+  deleteHistory: (id: number) => api.delete(`/chat/${id}`),
+  
+  // Chat Room Services
+  createRoom: (name: string, datasetId: string | null) => 
+    api.post('/chat/rooms', { name, dataset_id: datasetId }),
+  getRooms: () => api.get('/chat/rooms'),
+  deleteRoom: (id: number) => api.delete(`/chat/rooms/${id}`),
+  updateRoom: (id: number, name: string) => api.put(`/chat/rooms/${id}`, { name }),
 };
 
 export const dashboardService = {

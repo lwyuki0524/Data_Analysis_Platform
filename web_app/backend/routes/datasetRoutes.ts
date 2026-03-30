@@ -25,6 +25,7 @@ const upload = multer({ storage });
 router.post('/upload', upload.single('file'), datasetController.uploadDataset);
 router.get('/', datasetController.getDatasets);
 router.get('/:id', datasetController.getDatasetById);
+router.get('/:id/preview', datasetController.getDatasetPreview);
 router.delete('/:id', datasetController.deleteDataset);
 
 export default router;

@@ -42,7 +42,7 @@ const Navbar = () => {
 
       <div className="absolute bottom-8 left-6 right-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700">
         <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">MVP Version</p>
-        <p className="text-sm text-slate-300">Mock AI Analysis</p>
+        <p className="text-sm text-slate-300">AI Analysis</p>
       </div>
     </nav>
   );
