@@ -1,0 +1,9 @@
+import express from 'express';
+import * as chatController from '../controllers/chatController';
+
+const router = express.Router();
+
+router.post('/', chatController.askChat);
+router.get('/history', chatController.getChatHistory);
+
+export default router;
