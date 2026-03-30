@@ -3,14 +3,14 @@ import db from '../db/database';
 import { generateMockDashboard } from '../services/mockAiService';
 
 export const createDashboard = (req: Request, res: Response) => {
-  const { name, dataset_id } = req.body;
+  const { name, dataset_id, focus_fields } = req.body;
   if (!name) return res.status(400).json({ success: false, error: 'Name is required' });
 
   const mockDashboard = generateMockDashboard();
 
   db.run(
-    'INSERT INTO dashboards (name, dataset_id, config_json) VALUES (?, ?, ?)',
-    [name, dataset_id || null, JSON.stringify(mockDashboard)],
+    'INSERT INTO dashboards (name, dataset_id, focus_fields, config_json) VALUES (?, ?, ?, ?)',
+    [name, dataset_id || null, focus_fields ? JSON.stringify(focus_fields) : null, JSON.stringify(mockDashboard)],
     function (err) {
       if (err) {
         return res.status(500).json({ success: false, error: err.message });
@@ -21,6 +21,7 @@ export const createDashboard = (req: Request, res: Response) => {
           id: this.lastID,
           name,
           dataset_id: dataset_id || null,
+          focus_fields: focus_fields || null,
           ...mockDashboard
         }
       });
@@ -29,9 +30,13 @@ export const createDashboard = (req: Request, res: Response) => {
 };
 
 export const getDashboards = (req: Request, res: Response) => {
-  db.all('SELECT id, name, dataset_id, created_at FROM dashboards ORDER BY created_at DESC', (err, rows) => {
+  db.all('SELECT id, name, dataset_id, focus_fields, created_at FROM dashboards ORDER BY created_at DESC', (err, rows) => {
     if (err) return res.status(500).json({ success: false, error: err.message });
-    res.json({ success: true, data: rows });
+    const formattedRows = rows.map((row: any) => ({
+      ...row,
+      focus_fields: row.focus_fields ? JSON.parse(row.focus_fields) : null
+    }));
+    res.json({ success: true, data: formattedRows });
   });
 };
 
@@ -47,6 +52,7 @@ export const getDashboard = (req: Request, res: Response) => {
         id: row.id,
         name: row.name,
         dataset_id: row.dataset_id,
+        focus_fields: row.focus_fields ? JSON.parse(row.focus_fields) : null,
         ...JSON.parse(row.config_json)
       }
     });

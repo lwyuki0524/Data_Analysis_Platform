@@ -15,6 +15,7 @@ export const datasetService = {
   getAll: () => api.get('/dataset'),
   getById: (id: string) => api.get(`/dataset/${id}`),
   getPreview: (id: string) => api.get(`/dataset/${id}/preview`),
+  getColumns: (id: string) => api.get(`/dataset/${id}/columns`),
   delete: (id: string) => api.delete(`/dataset/${id}`),
 };
 
@@ -34,7 +35,8 @@ export const chatService = {
 };
 
 export const dashboardService = {
-  create: (name: string, datasetId?: string) => api.post('/dashboard', { name, dataset_id: datasetId }),
+  create: (name: string, datasetId?: string, focusFields?: string[]) => 
+    api.post('/dashboard', { name, dataset_id: datasetId, focus_fields: focusFields }),
   getAll: () => api.get('/dashboard'),
   getLatest: () => api.get('/dashboard/latest'),
   getById: (id: string) => api.get(`/dashboard/${id}`),

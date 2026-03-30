@@ -137,6 +137,57 @@ export const getDatasetPreview = async (req: Request, res: Response) => {
   });
 };
 
+export const getDatasetColumns = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  db.get('SELECT * FROM datasets WHERE id = ?', [id], async (err, row: any) => {
+    if (err) return res.status(500).json({ success: false, error: err.message });
+    if (!row) return res.status(404).json({ success: false, error: 'Dataset not found' });
+
+    if (!fs.existsSync(row.file_path)) {
+      return res.status(404).json({ success: false, error: 'File not found on disk' });
+    }
+
+    try {
+      let columns: string[] = [];
+      const ext = row.source_type.toLowerCase();
+
+      if (ext === 'csv') {
+        const fileContent = fs.readFileSync(row.file_path, 'utf-8');
+        const records = parse(fileContent, {
+          columns: true,
+          skip_empty_lines: true,
+          to: 1
+        });
+        if (records.length > 0) {
+          columns = Object.keys(records[0]);
+        }
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.readFile(row.file_path);
+        const worksheet = workbook.getWorksheet(1);
+        if (worksheet) {
+          const headerRow = worksheet.getRow(1);
+          headerRow.eachCell((cell) => {
+            columns.push(cell.text);
+          });
+        }
+      } else if (ext === 'json') {
+        const fileContent = fs.readFileSync(row.file_path, 'utf-8');
+        const jsonData = JSON.parse(fileContent);
+        const firstItem = Array.isArray(jsonData) ? jsonData[0] : jsonData;
+        if (firstItem) {
+          columns = Object.keys(firstItem);
+        }
+      }
+
+      res.json({ success: true, data: columns });
+    } catch (error: any) {
+      console.error('Error reading columns:', error);
+      res.status(500).json({ success: false, error: 'Failed to extract columns' });
+    }
+  });
+};
+
 export const deleteDataset = (req: Request, res: Response) => {
   const { id } = req.params;
   

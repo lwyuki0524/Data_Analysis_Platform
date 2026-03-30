@@ -14,6 +14,10 @@ const Dashboard = () => {
   const [generating, setGenerating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [availableColumns, setAvailableColumns] = useState<string[]>([]);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [isAutoSelect, setIsAutoSelect] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -38,6 +42,17 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    if (selectedDataset) {
+      datasetService.getColumns(selectedDataset).then(res => {
+        setAvailableColumns(res.data.data);
+        setSelectedColumns([]);
+      }).catch(err => console.error(err));
+    } else {
+      setAvailableColumns([]);
+    }
+  }, [selectedDataset]);
+
   const handleSelectDashboard = async (id: string) => {
     setActiveDashboardId(id);
     try {
@@ -59,16 +74,27 @@ const Dashboard = () => {
     
     setGenerating(true);
     try {
-      const res = await dashboardService.create(defaultName, selectedDataset);
+      const res = await dashboardService.create(
+        defaultName, 
+        selectedDataset, 
+        isAutoSelect ? undefined : selectedColumns
+      );
       const newDashboard = res.data.data;
       setDashboards(prev => [newDashboard, ...prev]);
       setActiveDashboardId(newDashboard.id);
       setCurrentDashboard(newDashboard);
+      setShowCreateModal(false);
     } catch (err) {
       console.error(err);
     } finally {
       setGenerating(false);
     }
+  };
+
+  const toggleColumn = (col: string) => {
+    setSelectedColumns(prev => 
+      prev.includes(col) ? prev.filter(c => c !== col) : [...prev, col]
+    );
   };
 
   const handleRename = async (id: string) => {
@@ -150,7 +176,7 @@ const Dashboard = () => {
           <div className="flex justify-between items-center px-2">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">我的儀表板</label>
             <button 
-              onClick={handleCreateDashboard}
+              onClick={() => setShowCreateModal(true)}
               disabled={generating}
               className="p-1 hover:bg-slate-100 rounded-lg text-blue-600 transition-colors disabled:opacity-50"
               title="新增儀表板"
@@ -246,8 +272,8 @@ const Dashboard = () => {
               </p>
             </div>
             <button 
-              onClick={handleCreateDashboard}
-              disabled={generating || !selectedDataset}
+              onClick={() => setShowCreateModal(true)}
+              disabled={generating}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-2xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 disabled:opacity-50 disabled:shadow-none"
             >
               {generating ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
@@ -308,6 +334,105 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Create Dashboard Modal */}
+      <AnimatePresence>
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-slate-800">建立新儀表板</h3>
+                <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">選擇資料集</label>
+                  <select 
+                    value={selectedDataset}
+                    onChange={(e) => setSelectedDataset(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="">選擇資料集...</option>
+                    {datasets.map(ds => (
+                      <option key={ds.id} value={ds.id}>{ds.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-sm font-semibold text-slate-700">分析模式</label>
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <button 
+                        onClick={() => setIsAutoSelect(true)}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${isAutoSelect ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        AI 自動判斷
+                      </button>
+                      <button 
+                        onClick={() => setIsAutoSelect(false)}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${!isAutoSelect ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                      >
+                        手動選擇欄位
+                      </button>
+                    </div>
+                  </div>
+
+                  {!isAutoSelect && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">選擇重點分析欄位</label>
+                      {availableColumns.length > 0 ? (
+                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1">
+                          {availableColumns.map(col => (
+                            <button
+                              key={col}
+                              onClick={() => toggleColumn(col)}
+                              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                                selectedColumns.includes(col)
+                                  ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                              }`}
+                            >
+                              {col}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">請先選擇資料集以載入欄位</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6 bg-slate-50 flex gap-3">
+                <button 
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
+                >
+                  取消
+                </button>
+                <button 
+                  onClick={handleCreateDashboard}
+                  disabled={generating || !selectedDataset || (!isAutoSelect && selectedColumns.length === 0)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 disabled:opacity-50"
+                >
+                  {generating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                  生成儀表板
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

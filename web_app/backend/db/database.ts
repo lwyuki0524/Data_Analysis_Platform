@@ -54,6 +54,7 @@ export const initDb = () => {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           dataset_id INTEGER,
+          focus_fields TEXT,
           config_json TEXT NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (dataset_id) REFERENCES datasets(id)
@@ -66,6 +67,10 @@ export const initDb = () => {
       });
 
       db.run("ALTER TABLE dashboards ADD COLUMN name TEXT", (err) => {
+        // Ignore error if column already exists
+      });
+
+      db.run("ALTER TABLE dashboards ADD COLUMN focus_fields TEXT", (err) => {
         // Ignore error if column already exists
       });
 
