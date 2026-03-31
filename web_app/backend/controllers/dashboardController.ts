@@ -1,32 +1,40 @@
 import { Request, Response } from 'express';
 import db from '../db/database';
-import { generateMockDashboard } from '../services/mockAiService';
+import { createAiDashboard } from '../services/aiService';
 
-export const createDashboard = (req: Request, res: Response) => {
+export const createDashboard = async (req: Request, res: Response) => {
   const { name, dataset_id, focus_fields } = req.body;
   if (!name) return res.status(400).json({ success: false, error: 'Name is required' });
+  if (!dataset_id) return res.status(400).json({ success: false, error: 'Dataset ID is required' });
 
-  const mockDashboard = generateMockDashboard();
+  try {
+    const aiDashboardResponse = await createAiDashboard(dataset_id, focus_fields);
+    const config_json = aiDashboardResponse.dashboard_config;
 
-  db.run(
-    'INSERT INTO dashboards (name, dataset_id, focus_fields, config_json) VALUES (?, ?, ?, ?)',
-    [name, dataset_id || null, focus_fields ? JSON.stringify(focus_fields) : null, JSON.stringify(mockDashboard)],
-    function (err) {
-      if (err) {
-        return res.status(500).json({ success: false, error: err.message });
-      }
-      res.json({
-        success: true,
-        data: {
-          id: this.lastID,
-          name,
-          dataset_id: dataset_id || null,
-          focus_fields: focus_fields || null,
-          ...mockDashboard
+    db.run(
+      'INSERT INTO dashboards (name, dataset_id, focus_fields, config_json) VALUES (?, ?, ?, ?)',
+      [name, dataset_id, focus_fields ? JSON.stringify(focus_fields) : null, JSON.stringify(config_json)],
+      function (err) {
+        if (err) {
+          console.error("Database insert error:", err.message);
+          return res.status(500).json({ success: false, error: err.message });
         }
-      });
-    }
-  );
+        res.json({
+          success: true,
+          data: {
+            id: this.lastID,
+            name,
+            dataset_id,
+            focus_fields: focus_fields || null,
+            ...config_json // Spread the config directly into the data
+          }
+        });
+      }
+    );
+  } catch (error: any) {
+    console.error('Error creating AI dashboard:', error.message);
+    res.status(500).json({ success: false, error: error.message || 'Failed to create AI dashboard' });
+  }
 };
 
 export const getDashboards = (req: Request, res: Response) => {

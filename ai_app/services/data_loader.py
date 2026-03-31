@@ -36,3 +36,9 @@ class DataLoader:
         else:
             raise ValueError("Unsupported format")
         return df
+
+    def get_columns(self, dataset_id: str) -> list[str]:
+        df = self.load(dataset_id)
+        if df is None:
+            return []
+        return df.columns.tolist()

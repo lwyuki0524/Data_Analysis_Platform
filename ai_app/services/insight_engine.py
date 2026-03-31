@@ -1,3 +1,5 @@
+import pandas as pd
+
 INSIGHT_PROMPT = """
 你是一個資料分析師。
 
@@ -8,7 +10,7 @@ INSIGHT_PROMPT = """
 
 請用簡潔中文回答。
 """
-    
+
 class InsightEngine:
     def generate(self, df):
 
@@ -49,3 +51,23 @@ class InsightEngine:
             insights.append("資料具有一定分布差異")
 
         return {"insights": insights}
+
+    def identify_important_columns(self, df: pd.DataFrame) -> list[str]:
+        important_columns = []
+        for col in df.columns:
+            # Skip columns with too many unique values (potential IDs or free text)
+            if df[col].nunique() > len(df) * 0.8:  # More than 80% unique values
+                continue
+
+            # Prioritize numerical columns
+            if pd.api.types.is_numeric_dtype(df[col]):
+                important_columns.append(col)
+            # Consider categorical columns with a reasonable number of unique values
+            elif pd.api.types.is_object_dtype(df[col]) or pd.api.types.is_categorical_dtype(df[col]):
+                if 2 <= df[col].nunique() <= 50:  # Between 2 and 50 unique categories
+                    important_columns.append(col)
+
+        # If no important columns found, just return all columns (or first few)
+        if not important_columns and not df.empty:
+            return df.columns.tolist()[:5] # Return first 5 columns as a fallback
+        return important_columns

@@ -45,7 +45,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (selectedDataset) {
       datasetService.getColumns(selectedDataset).then(res => {
-        setAvailableColumns(res.data.data);
+        setAvailableColumns(res.data.columns);
         setSelectedColumns([]);
       }).catch(err => console.error(err));
     } else {
@@ -129,20 +129,49 @@ const Dashboard = () => {
 
   // Helper to convert simple chart data to Vega-Lite spec
   const getVegaSpec = (chart: any) => {
+
+    if (chart.vega_lite_spec) {
+      return JSON.stringify(chart.vega_lite_spec);
+    }
+
+    if (!chart.data || chart.data.length === 0) return null;
+    
     const spec: any = {
       $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
+      autosize: {
+        type: 'fit',
+        contains: 'padding'
+      },
       description: chart.title,
       data: {
         values: chart.data
       },
-      mark: chart.type === 'line' ? 'line' : 'bar',
+      mark: chart.type === 'line' ? 'line' : 
+            chart.type === 'bar' ? 'bar' : 
+            chart.type === 'scatter' ? 'point' : 
+            chart.type === 'area' ? 'area' : 
+            chart.type === 'histogram' ? 'bar' : 'bar', // Default to bar if type is unknown
       encoding: {
-        x: { field: 'name', type: 'nominal', title: '類別' },
-        y: { field: 'value', type: 'quantitative', title: '數值' }
+        x: { field: 'name', type: 'nominal', title: '類別', axis: { 
+          labelAngle: -45,      // 標籤斜放節省橫向空間
+          labelFontSize: 10, 
+          labelLimit: 80,       // 強制標籤超過 80px 就斷字(...)
+          labelOverlap: 'minicity' // 自動隱藏重疊的標籤
+        }},
+        y: { field: 'value', type: 'quantitative', title: '數值', axis: { labelFlush: true }}
       },
       width: 'container',
-      height: 'container'
+      height: 300
     };
+
+    if (!chart.vega_lite_spec) {
+      spec.data = { values: chart.data };
+      spec.mark = chart.type === 'line' ? 'line' : 'bar';
+      spec.encoding = {
+        x: { field: 'name', type: 'nominal', title: null }, // title 設為 null 節省空間
+        y: { field: 'value', type: 'quantitative' }
+      };
+    }
     return JSON.stringify(spec);
   };
 
@@ -304,10 +333,10 @@ const Dashboard = () => {
                     <div className="flex items-baseline gap-2 mt-2">
                       <h2 className="text-2xl font-bold text-slate-900">{kpi.value}</h2>
                       <span className={`text-xs font-bold flex items-center gap-0.5 ${
-                        kpi.trend.startsWith('+') ? 'text-emerald-500' : 'text-rose-500'
+                        (kpi.trend || "").startsWith('+') ? 'text-emerald-500' : 'text-rose-500'
                       }`}>
-                        {kpi.trend.startsWith('+') ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        {kpi.trend}
+                        {(kpi.trend || "").startsWith('+') ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                        {kpi.trend || "N/A"}
                       </span>
                     </div>
                   </motion.div>
@@ -322,6 +351,7 @@ const Dashboard = () => {
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.3 + i * 0.1 }}
+                    className="min-w-0 w-full"
                   >
                     <Chart 
                       chartSpec={getVegaSpec(chart)}

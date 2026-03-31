@@ -15,6 +15,15 @@ export interface AiResponse {
   table?: any[];
 }
 
+export interface DashboardConfig {
+  widgets: any[]; // This should match the Python Pydantic schemas
+}
+
+export interface CreateDashboardAiResponse {
+  dashboard_id: string;
+  dashboard_config: DashboardConfig;
+}
+
 export const registerDatasetToAi = async (datasetId: string) => {
   try {
     const response = await axios.post(`${AI_APP_URL}/dataset/register`, {
@@ -23,6 +32,32 @@ export const registerDatasetToAi = async (datasetId: string) => {
     return response.data;
   } catch (error) {
     console.error('Error registering dataset to AI service:', error);
+    throw error;
+  }
+};
+
+export const getDatasetColumns = async (datasetId: string): Promise<{ columns: string[] }> => {
+  try {
+    const response = await axios.get(`${AI_APP_URL}/dataset/${datasetId}/columns`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching columns for dataset ${datasetId} from AI service:`, error);
+    throw error;
+  }
+};
+
+export const createAiDashboard = async (
+  datasetId: string,
+  focusFields?: string[]
+): Promise<CreateDashboardAiResponse> => {
+  try {
+    const response = await axios.post(`${AI_APP_URL}/dashboard/create`, {
+      dataset_id: datasetId,
+      focus_fields: focusFields
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error creating AI dashboard:', error);
     throw error;
   }
 };
