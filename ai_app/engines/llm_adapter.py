@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 import time
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
+from google import genai
+from google.genai import types
 import json
 
 def get_plan_system_prompt(INSERT_COLUMN_LIST_HERE:Optional[str] = ""):
@@ -71,17 +73,20 @@ class LLMAdapter(ABC):
     def generate_insight(self, dataframe_summary_json: str) -> str:
         pass
 
-    # Keeping this for now, will remove after full refactor
-    @abstractmethod
-    def generate_query(self, prompt: str) -> str:
-        pass
-
 
 class OpenAIAdapter(LLMAdapter):
 
-    def __init__(self, model: str, api_key: Optional[str] = "", base_url: Optional[str] = None):
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+    def __init__(self, model: str, mode:str = "local", api_key: Optional[str] = "", base_url: Optional[str] = None):
+        if not base_url:
+            base_url = None
+        
+        if mode in ["local", "openai"]:
+            self.client = OpenAI(api_key=api_key, base_url=base_url)
+        elif mode in ["google_genai"]:
+            self.client = genai.Client(api_key=api_key)
+        
         self.model = model
+        self.mode = mode
 
     def generate_plan(self, prompt: str, dataframe_head_json: str, df_columns:Optional[list] = [] ) -> Dict[str, Any]:
         messages = [
@@ -90,15 +95,30 @@ class OpenAIAdapter(LLMAdapter):
         ]
         
         try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0,
-                response_format={"type": "json_object"}
-            )
-            raw_text = completion.choices[0].message.content.strip()
-            print("generate_plan raw_text=",raw_text)
-            return json.loads(raw_text)
+            if self.mode in ["google_genai"]:
+                completion = self.client.models.generate_content(
+                    model=self.model,
+                    config=types.GenerateContentConfig(system_instruction=get_plan_system_prompt(df_columns), temperature=0),
+                    contents=[
+                        types.Content(
+                            role='user',
+                            parts=[types.Part.from_text(text=f"使用者問題: {prompt}\n\n資料框前幾行:\n{dataframe_head_json}")]
+                        )
+                    ]
+                )
+                raw_text = completion.text.strip()
+                print("generate_plan raw_text=",raw_text)
+                return json.loads(raw_text)
+            else:
+                completion = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0,
+                    response_format={"type": "json_object"}
+                )
+                raw_text = completion.choices[0].message.content.strip()
+                print("generate_plan raw_text=",raw_text)
+                return json.loads(raw_text)
         except Exception as e:
             print(f"[LLM ERROR - generate_plan] {e}")
             return {"steps": [], "chart": None}
@@ -110,26 +130,29 @@ class OpenAIAdapter(LLMAdapter):
         ]
 
         try:
-            completion = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=0,
-                max_tokens=500, # Allow more tokens for insights
-            )
-            return completion.choices[0].message.content.strip()
+            if self.mode in ["google_genai"]:
+                completion = self.client.models.generate_content(
+                    model=self.model,
+                    config=types.GenerateContentConfig(system_instruction=INSIGHT_SYSTEM_PROMPT, temperature=0, max_output_tokens=500),
+                    contents=[
+                        types.Content(
+                            role='user',
+                            parts=[types.Part.from_text(text=dataframe_summary_json)]
+                        )
+                    ]
+                )
+                return completion.text.strip()
+            else:
+                completion = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=0,
+                    max_tokens=500, # Allow more tokens for insights
+                )
+                return completion.choices[0].message.content.strip()
         except Exception as e:
             print(f"[LLM ERROR - generate_insight] {e}")
             return "無法生成洞察。"
-
-    def generate_query(self, prompt: str) -> str:
-        # This method is being deprecated, but keeping it for now
-        # The original SYSTEM_PROMPT is no longer defined, so using a placeholder.
-        # This method will be removed in a later step.
-        return "describe" # Placeholder for deprecated method
-
-
-
-
 
 
 

@@ -1,16 +1,5 @@
 import pandas as pd
 
-INSIGHT_PROMPT = """
-你是一個資料分析師。
-
-請根據以下資料結果，給出 2~3 個重點洞察。
-
-資料：
-{data}
-
-請用簡潔中文回答。
-"""
-
 class InsightEngine:
     def generate(self, df):
 

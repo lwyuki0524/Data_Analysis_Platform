@@ -36,39 +36,134 @@ class VisualizationEngine:
 
         raise ValueError(f"無法解析欄位: {name}。現有欄位: {list(df.columns)}")
 
+    def generate_chart(self, df: pd.DataFrame, chart_spec: Dict[str, Any]):
+        if not chart_spec:
+            return None
+
+        chart_type = chart_spec.get("type")
+        title = chart_spec.get("title", "Chart")
+        x_axis = chart_spec.get("x_axis")
+        y_axis = chart_spec.get("y_axis")
+        color = chart_spec.get("color") # Optional for some charts
+
+        if not x_axis or not y_axis:
+            print("Warning: x_axis or y_axis not specified for chart.")
+            return None
+
+        x_axis = self.resolve_column(df, x_axis)
+        y_axis = self.resolve_column(df, y_axis)
+
+        x_type = self.infer_dtype(df[x_axis])
+        y_type = self.infer_dtype(df[y_axis])
+
+        base = alt.Chart(df).encode(
+            x=alt.X(f"{x_axis}:{x_type}", axis=alt.Axis(title=x_axis)),
+            y=alt.Y(f"{y_axis}:{y_type}", axis=alt.Axis(title=y_axis))
+        ).properties(
+            title=title
+        )
+
+        chart = None
+        if chart_type == "bar_chart":
+            if color:
+                chart = base.mark_bar().encode(color=color)
+            else:
+                chart = base.mark_bar()
+        elif chart_type == "line_chart":
+            if color:
+                chart = base.mark_line(point=True).encode(color=color)
+            else:
+                chart = base.mark_line(point=True)
+        elif chart_type == "scatter_plot":
+            if color:
+                chart = base.mark_point().encode(color=color)
+            else:
+                chart = base.mark_point()
+        elif chart_type == "pie_chart":
+            # For pie charts, y_axis usually represents the values and x_axis the categories
+            # Altair pie chart is a bit different, often uses theta for values and color for categories
+            if y_axis and x_axis: # y_axis as value, x_axis as category/color
+                chart = alt.Chart(df).encode(
+                    theta=alt.Theta(field=y_axis, type="quantitative"),
+                    color=alt.Color(field=x_axis, type="nominal", title=x_axis)
+                ).mark_arc(outerRadius=120).properties(
+                    title=title
+                )
+            else:
+                return None
+        else:
+            print(f"Unsupported chart type: {chart_type}")
+            return None
+
+        return chart.to_json() # Return chart as JSON spec
+    
+
+    
     def generate_dashboard_charts(self, df: pd.DataFrame, columns: List[str]) -> List[Union[ChartWidget, KpiWidget]]:
         widgets: List[Union[ChartWidget, KpiWidget]] = []
 
         # Generate KPIs for numerical columns
         for col in columns:
             if pd.api.types.is_numeric_dtype(df[col]):
-                total = df[col].sum()
-                average = df[col].mean()
-                # Simple trend: compare first half vs second half mean
-                mid_point = len(df) // 2
-                if len(df) > 1:
-                    first_half_mean = df[col].iloc[:mid_point].mean()
-                    second_half_mean = df[col].iloc[mid_point:].mean()
-                    if pd.isna(first_half_mean) or pd.isna(second_half_mean):
-                        trend_str = "N/A"
-                    elif first_half_mean != 0:
-                        trend_diff = ((second_half_mean - first_half_mean) / first_half_mean) * 100
-                        trend_str = f" {trend_diff:+.1f}%"
-                    else:
-                        trend_str = "N/A" # Avoid division by zero
-                else:
-                    trend_str = "N/A"
+                series = df[col].dropna()
+                if series.empty:
+                    continue
+
+                # 基本統計量
+                total = series.sum()
+                average = series.mean()
+                maximum = series.max()
+                minimum = series.min()
+                
+                n = len(series)
+                mid_point = n // 2
+
+                # 1. 總計趨勢：前後半部比較 (反映總量變化)
+                trend_total = "N/A"
+                if n > 1:
+                    first_half_sum = series.iloc[:mid_point].sum()
+                    second_half_sum = series.iloc[mid_point:].sum()
+                    if first_half_sum != 0:
+                        diff = ((second_half_sum - first_half_sum) / abs(first_half_sum)) * 100
+                        trend_total = f"{diff:+.1f}%"
+                
+                # 2. 平均趨勢：整體平均 vs 近期平均 (最後 20% 的數據)
+                trend_avg = "N/A"
+                recent_count = max(1, n // 5)
+                recent_avg = series.iloc[-recent_count:].mean()
+                if average != 0:
+                    diff = ((recent_avg - average) / abs(average)) * 100
+                    trend_avg = f"{diff:+.1f}%"
+
+                # 3. 最大值趨勢：是否為近期突破
+                # 比較最後一個 window 是否包含最大值
+                trend_max = "新高" if series.iloc[-recent_count:].max() >= maximum else "持平"
+
+                # 4. 最小值趨勢：是否創低
+                trend_min = "新低" if series.iloc[-recent_count:].min() <= minimum else "持平"
 
                 widgets.append(KpiWidget(
                     title=f"總計 {col}",
                     value=f"{total:.2f}",
-                    trend=trend_str,
+                    trend=trend_total,
                     type="kpi"
                 ))
                 widgets.append(KpiWidget(
                     title=f"平均 {col}",
                     value=f"{average:.2f}",
-                    trend=trend_str, # Reusing the same trend for simplicity
+                    trend=trend_avg, # Reusing the same trend for simplicity
+                    type="kpi"
+                ))
+                widgets.append(KpiWidget(
+                    title=f"最大 {col}",
+                    value=f"{maximum:.2f}",
+                    trend=trend_max,
+                    type="kpi"
+                ))
+                widgets.append(KpiWidget(
+                    title=f"最小 {col}",
+                    value=f"{minimum:.2f}",
+                    trend=trend_min,
                     type="kpi"
                 ))
 

@@ -321,26 +321,42 @@ const Dashboard = () => {
             <div className="space-y-8">
               {/* KPI Widgets */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {currentDashboard.widgets.filter((w: any) => w.type === 'kpi').map((kpi: any, i: number) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
-                  >
-                    <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">{kpi.title}</p>
-                    <div className="flex items-baseline gap-2 mt-2">
-                      <h2 className="text-2xl font-bold text-slate-900">{kpi.value}</h2>
-                      <span className={`text-xs font-bold flex items-center gap-0.5 ${
-                        (kpi.trend || "").startsWith('+') ? 'text-emerald-500' : 'text-rose-500'
-                      }`}>
-                        {(kpi.trend || "").startsWith('+') ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                        {kpi.trend || "N/A"}
-                      </span>
-                    </div>
-                  </motion.div>
-                ))}
+                {currentDashboard.widgets.filter((w: any) => w.type === 'kpi').map((kpi: any, i: number) => 
+                  {
+                    // 建立一個判斷邏輯來處理各種趨勢狀態
+                    const getTrendConfig = (trend: string) => {
+                      const t = trend || "";
+                      if (t.startsWith('+') || t === "新高") {
+                        return { color: 'text-emerald-500', icon: <TrendingUp size={12} />};
+                      }
+                      if (t.startsWith('-') || t === "新低") {
+                        // 注意：如果是負債、成本類的「新低」可能是好事，這裡預設邏輯為數據下降即紅色
+                        return { color: 'text-rose-500', icon: <TrendingDown size={12} />};
+                      }
+                      return { color: 'text-slate-400', icon: null, bg: 'bg-slate-50' }; // 持平或 N/A
+                    };
+
+                    const { color, icon, bg } = getTrendConfig(kpi.trend);
+                    return (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
+                      >
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{kpi.title}</p>
+                        <div className="flex items-baseline gap-2 mt-2">
+                          <h2 className="text-2xl font-bold text-slate-900">{kpi.value}</h2>
+                          <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold flex items-center gap-0.5 ${color} ${bg}`}>
+                            {icon}
+                            {kpi.trend || "N/A"}
+                          </span>
+                        </div>
+                      </motion.div>
+                    )
+                  }
+                )}
               </div>
 
               {/* Charts */}
