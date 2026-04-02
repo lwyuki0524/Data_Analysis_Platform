@@ -17,9 +17,6 @@ class Orchestrator:
         base_url=os.getenv("BASE_URL")
         api_key=os.getenv("LLM_API_KEY", "")
 
-        # print("model=",model)
-        # print("base_url=",base_url)
-
         try:
             self.llm = OpenAIAdapter(model=model, mode=mode, api_key=api_key, base_url=base_url)
         except:

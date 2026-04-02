@@ -13,10 +13,12 @@ const Navbar = () => {
 
   return (
     <nav className="fixed left-0 top-0 h-full w-64 bg-slate-900 text-white p-6 shadow-xl z-50">
-      <div className="flex items-center gap-3 mb-10 px-2">
-        <BarChart3 className="w-8 h-8 text-blue-400" />
-        <span className="text-xl font-bold tracking-tight">AI Data Platform</span>
-      </div>
+      <Link to="/" className="flex items-center gap-3 mb-10 px-2">
+        <div className="flex items-center gap-3 mb-10 px-2">
+          <BarChart3 className="w-8 h-8 text-blue-400" />
+          <span className="text-xl font-bold tracking-tight">AI Data Platform</span>
+        </div>
+      </Link>
       
       <div className="space-y-2">
         {navItems.map((item) => {

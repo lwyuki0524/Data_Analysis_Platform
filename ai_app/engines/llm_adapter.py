@@ -77,14 +77,14 @@ class LLMAdapter(ABC):
 class OpenAIAdapter(LLMAdapter):
 
     def __init__(self, model: str, mode:str = "local", api_key: Optional[str] = "", base_url: Optional[str] = None):
-        if not base_url:
-            base_url = None
-        
-        if mode in ["local", "openai"]:
+        if mode == "local":
             self.client = OpenAI(api_key=api_key, base_url=base_url)
-        elif mode in ["google_genai"]:
+        elif mode == "openai":
+            self.client = OpenAI(api_key=api_key)
+        elif mode == "google_genai":
             self.client = genai.Client(api_key=api_key)
-        
+        else:
+            raise ValueError(f"目前無mode={mode}的實作")
         self.model = model
         self.mode = mode
 
